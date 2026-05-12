@@ -1,8 +1,16 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
-load_dotenv()
+class Settings(BaseSettings):
+    app_name: str = "AI Spam Detector"
+    huggingface_model_name: str = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
 
-DATABASE_URL = f"postgresql+asyncpg://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}"
-HF_MODEL_NAME = os.getenv('HF_MODEL_NAME', 'mrm8488/bert-tiny-finetuned-sms-spam-detection')
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
+    postgres_host: str
+    postgres_port: int = 5432
+
+    class Config:
+        env_file = ".env" # Путь к файлу с переменными окружения
+
+settings = Settings()
