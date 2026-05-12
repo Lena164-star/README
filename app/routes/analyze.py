@@ -1,36 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+import json
 import logging
-from ..schemas import AnalyzeRequest, AnalyzeResponse
-from ..ml_service import classifier
-from ..models import RequestHistory
-from ..db import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from ..schemas import AnalyzeRequest, AnalyzeResponse
+from ..database import get_db
+from ..models import RequestHistory
+from ..ml_service import spam_detector
+
 logger = logging.getLogger(__name__)
+router = APIRouter()
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze(request: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
-    text = request.text.strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Text cannot be empty")
-    if len(text) > 500:   # дополнительное ограничение (по желанию)
-        raise HTTPException(status_code=400, detail="Text too long (max 500 characters)")
+async def analyze_text(request: AnalyzeRequest, db: Session = Depends(get_db)):
+    """Анализирует текст на спам и сохраняет результат в БД."""
+    input_text = request.text.strip()
+    logger.info(f"Received analysis request for text (first 50 chars): '{input_text[:50]}...'")
+    
+    if not input_text:
+        raise HTTPException(status_code=400, detail="Input text cannot be empty")
 
     try:
-        label, score = classifier.predict(text)
-    except Exception as e:
+        # Получаем предсказание от модели
+        prediction = spam_detector.predict(input_text)
+        # Преобразуем результат в JSON-строку для хранения
+        result_text = json.dumps(prediction)
+    except RuntimeError as e:
         logger.error(f"Model prediction error: {e}")
-        raise HTTPException(status_code=500, detail="Model processing error")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected prediction error: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred during text analysis.")
 
-    # Сохраняем в БД
-    history_entry = RequestHistory(
-        input_text=text,
-        result_text=label,
-        model_name=classifier.model_name
-    )
-    db.add(history_entry)
-    await db.commit()
+    try:
+        # Сохраняем запрос в БД
+        db_history = RequestHistory(
+            input_text=input_text,
+            result_text=result_text,
+            model_name=spam_detector.model_name
+        )
+        db.add(db_history)
+        db.commit()
+        db.refresh(db_history)
+        logger.info(f"Request saved to database with id: {db_history.id}")
+    except Exception as e:
+        logger.error(f"Failed to save request to database: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save request history.")
 
-    logger.info(f"Analyzed text: label={label}, score={score}")
-    return AnalyzeResponse(label=label, score=score)
+    return AnalyzeResponse(**prediction)
