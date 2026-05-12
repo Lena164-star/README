@@ -1,0 +1,88 @@
+{
+  "info": {
+    "name": "AI Spam Detector API",
+    "description": "Коллекция запросов для тестирования Spam Detector API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/health"
+      }
+    },
+    {
+      "name": "Analyze - SPAM text",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/analyze",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\": \"Congratulations! You've won a free iPhone. Click here to claim!\"}"
+        }
+      }
+    },
+    {
+      "name": "Analyze - NOT SPAM text",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/analyze",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\": \"Hey, are you coming to the meeting tomorrow?\"}"
+        }
+      }
+    },
+    {
+      "name": "Analyze - Empty text (ERROR)",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:8000/analyze",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\": \"\"}"
+        }
+      }
+    },
+    {
+      "name": "Get History",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/history"
+      }
+    },
+    {
+      "name": "Get History by ID",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/history/1"
+      }
+    },
+    {
+      "name": "Get History - Not Found (ERROR)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8000/history/9999"
+      }
+    }
+  ]
+}
