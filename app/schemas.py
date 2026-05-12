@@ -1,17 +1,22 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
 
-# Входные данные для /analyze
+
 class AnalyzeRequest(BaseModel):
-    text: str = Field(..., min_length=1, description="Текст для проверки на спам")
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="Text to classify as SPAM or NOT SPAM",
+        examples=["Congratulations! You've won a free iPhone!"]
+    )
 
-# Выходные данные для /analyze
+
 class AnalyzeResponse(BaseModel):
-    result: str
-    score: float
+    result: str = Field(..., description="SPAM or NOT SPAM")
+    score: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
 
-# Представление записи в истории для /history
+
 class HistoryItem(BaseModel):
     id: int
     input_text: str
@@ -20,4 +25,8 @@ class HistoryItem(BaseModel):
     created_at: datetime
 
     class Config:
-        from_attributes = True # Позволяет создавать схему из ORM-модели
+        from_attributes = True
+
+
+class HealthResponse(BaseModel):
+    status: str = "ok"
