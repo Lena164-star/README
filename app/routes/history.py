@@ -1,42 +1,72 @@
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..schemas import HistoryItem
-from ..database import get_db
-from ..models import RequestHistory
+from app.schemas import HistoryItem
+from app.database import get_db
+from app.models import RequestHistory
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/history", tags=["History"])
 
-@router.get("/history", response_model=List[HistoryItem])
-async def get_history(db: Session = Depends(get_db)):
-    """Возвращает последние 20 запросов из истории."""
-    logger.info("Fetching last 20 history items.")
+
+@router.get("", response_model=List[HistoryItem])
+async def get_recent_history(
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    Возвращает последние N запросов из истории (по умолчанию 20).
+    """
+    logger.info(f"📋 Fetching last {limit} history records")
+
     try:
-        history = (
+        records = (
             db.query(RequestHistory)
             .order_by(RequestHistory.created_at.desc())
-            .limit(20)
+            .limit(limit)
             .all()
         )
-        return history
+        logger.info(f"✅ Found {len(records)} records")
+        return records
     except Exception as e:
         logger.error(f"Failed to fetch history: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve history.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve history from database."
+        )
 
-@router.get("/history/{history_id}", response_model=HistoryItem)
-async def get_history_item(history_id: int, db: Session = Depends(get_db)):
-    """Возвращает конкретную запись из истории по ID."""
-    logger.info(f"Fetching history item with id: {history_id}")
+
+@router.get("/{history_id}", response_model=HistoryItem)
+async def get_history_by_id(
+    history_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Возвращает конкретную запись из истории по ID.
+    """
+    logger.info(f" Looking for history record ID: {history_id}")
+
     try:
-        history_item = db.query(RequestHistory).filter(RequestHistory.id == history_id).first()
-        if history_item is None:
-            raise HTTPException(status_code=404, detail=f"History item with id {history_id} not found.")
-        return history_item
-    except HTTPException:
-        raise
+        record = (
+            db.query(RequestHistory)
+            .filter(RequestHistory.id == history_id)
+            .first()
+        )
     except Exception as e:
-        logger.error(f"Failed to fetch history item {history_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve history item.")
+        logger.error(f"Database query error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error querying database."
+        )
+
+    if record is None:
+        logger.warning(f"Record ID {history_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"History record with ID {history_id} not found."
+        )
+
+    logger.info(f"✅ Found record: ID={record.id}")
+    return record
