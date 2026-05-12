@@ -1,28 +1,39 @@
 import logging
 from transformers import pipeline
-from .config import HF_MODEL_NAME
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
-class SpamClassifier:
+class SpamDetector:
     def __init__(self):
-        self.model_name = HF_MODEL_NAME
-        logger.info(f"Loading Hugging Face model: {self.model_name}")
+        self.model_name = settings.huggingface_model_name
+        self.pipeline = None
+        self.load_model()
+
+    def load_model(self):
+        """Загружает модель машинного обучения из Hugging Face."""
         try:
-            self.pipeline = pipeline("text-classification", model=self.model_name)
-            logger.info("Model loaded successfully")
+            logger.info(f"Loading model: {self.model_name}")
+            # Создаем pipeline для классификации текста
+            self.pipeline = pipeline(
+                "text-classification",
+                model=self.model_name,
+                tokenizer=self.model_name
+            )
+            logger.info(f"Model '{self.model_name}' loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            raise RuntimeError(f"Model loading error: {e}")
+            logger.error(f"Failed to load model '{self.model_name}': {e}")
+            raise RuntimeError(f"Could not load model: {e}")
 
-    def predict(self, text: str):
-        result = self.pipeline(text[:512])  # ограничим длину (модели BERT обычно 512 токенов)
-        # result = [{'label': 'LABEL_1', 'score': 0.99}, ...]
-        label = result[0]['label']
-        score = result[0]['score']
-        # Приведём к читаемому виду: LABEL_1 -> spam, LABEL_0 -> ham
-        spam_label = "spam" if label == "LABEL_1" else "ham"
-        return spam_label, score
+    def predict(self, text: str) -> dict:
+        """Делает предсказание (спам или нет)."""
+        if not self.pipeline:
+            raise RuntimeError("Prediction model is not loaded.")
+        
+        result = self.pipeline(text)[0]
+        return {
+            "result": result['label'],
+            "score": result['score']
+        }
 
-# Синглтон
-classifier = SpamClassifier()
+spam_detector = SpamDetector()
