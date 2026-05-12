@@ -1,51 +1,75 @@
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..schemas import AnalyzeRequest, AnalyzeResponse
-from ..database import get_db
-from ..models import RequestHistory
-from ..ml_service import spam_detector
+from app.schemas import AnalyzeRequest, AnalyzeResponse
+from app.database import get_db
+from app.models import RequestHistory
+from app.ml_service import spam_detector
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/analyze", tags=["Analysis"])
 
-@router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_text(request: AnalyzeRequest, db: Session = Depends(get_db)):
-    """Анализирует текст на спам и сохраняет результат в БД."""
-    input_text = request.text.strip()
-    logger.info(f"Received analysis request for text (first 50 chars): '{input_text[:50]}...'")
-    
-    if not input_text:
-        raise HTTPException(status_code=400, detail="Input text cannot be empty")
 
+@router.post("", response_model=AnalyzeResponse)
+async def analyze_text(
+    request: AnalyzeRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Анализирует текст и определяет, является ли он спамом.
+    Результат сохраняется в историю запросов.
+    """
+    text = request.text.strip()
+
+    # 1. Валидация входных данных
+    if not text:
+        logger.warning("Empty text received")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Input text cannot be empty"
+        )
+
+    logger.info(f"📝 Analyzing text: '{text[:100]}{'...' if len(text) > 100 else ''}'")
+
+    # 2. Проверка готовности ML-модели
+    if spam_detector is None:
+        logger.error("ML model is not loaded")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ML model is not available. Please try again later."
+        )
+
+    # 3. Предсказание
     try:
-        # Получаем предсказание от модели
-        prediction = spam_detector.predict(input_text)
-        # Преобразуем результат в JSON-строку для хранения
-        result_text = json.dumps(prediction)
-    except RuntimeError as e:
-        logger.error(f"Model prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        prediction = spam_detector.predict(text)
+        result_json = json.dumps(prediction)
+        logger.info(f"✅ Prediction: {prediction}")
     except Exception as e:
-        logger.error(f"Unexpected prediction error: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred during text analysis.")
+        logger.error(f"Prediction failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to analyze text. Please try again."
+        )
 
+    # 4. Сохранение в БД
     try:
-        # Сохраняем запрос в БД
-        db_history = RequestHistory(
-            input_text=input_text,
-            result_text=result_text,
+        db_record = RequestHistory(
+            input_text=text,
+            result_text=result_json,
             model_name=spam_detector.model_name
         )
-        db.add(db_history)
+        db.add(db_record)
         db.commit()
-        db.refresh(db_history)
-        logger.info(f"Request saved to database with id: {db_history.id}")
+        db.refresh(db_record)
+        logger.info(f"💾 Saved to history with ID: {db_record.id}")
     except Exception as e:
-        logger.error(f"Failed to save request to database: {e}")
+        logger.error(f"Failed to save to database: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to save request history.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Result was generated but could not be saved to history."
+        )
 
     return AnalyzeResponse(**prediction)
