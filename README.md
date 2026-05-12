@@ -27,9 +27,3 @@ REST API сервис для автоматической классификац
 - Установленный [Docker Compose](https://docs.docker.com/compose/install/)
 - Git (для клонирования)
 
-### Запуск
-
-1. **Клонируйте репозиторий:**
-   ```bash
-   git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ>
-   cd ai-spam-detector
