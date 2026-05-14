@@ -30,7 +30,8 @@ REST API сервис для автоматической классификац
    ```bash
    git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ>
    cd ai-spam-detector
-2. Настройка переменных окружения
+
+## 2. Настройка переменных окружения
 Создайте файл .env из примера:
 
 bash
@@ -47,7 +48,7 @@ POSTGRES_PORT=5432
 💡 Вы можете изменить модель, указав другую в HUGGINGFACE_MODEL_NAME.
 Рекомендуется использовать небольшие модели для запуска без GPU.
 
-3. Запуск сервиса
+## 3. Запуск сервиса
 bash
 docker compose up --build
 При первом запуске:
@@ -62,7 +63,7 @@ docker compose up --build
 
 Первый запуск может занять 2-5 минут. Последующие запуски будут быстрее.
 
-4. Проверка работоспособности
+## 4. Проверка работоспособности
 Откройте в браузере или выполните:
 
 bash
@@ -74,7 +75,7 @@ json
 API доступно по адресу: http://localhost:8000
 
 Автоматическая документация Swagger: http://localhost:8000/docs
- API Endpoints
+ ## API Endpoints
 GET / — Информация о сервисе
 bash
 curl http://localhost:8000/
@@ -208,7 +209,7 @@ curl http://localhost:8000/history/9999
 json
 {"detail": "History record with ID 9999 not found."}
 </details>
-🗄 База данных
+## База данных
 Таблица requests_history:
 
 Поле	Тип	Описание
@@ -217,7 +218,7 @@ input_text	TEXT	Исходный текст запроса
 result_text	TEXT	Результат в формате JSON: {"result": "...", "score": ...}
 model_name	VARCHAR(255)	Название модели Hugging Face
 created_at	TIMESTAMPTZ	Дата и время запроса (автоматически)
-ML Модель
+## ML Модель
 Используется модель: mrm8488/bert-tiny-finetuned-sms-spam-detection
 
 Характеристика	Значение
@@ -241,7 +242,7 @@ docker compose up --build
 
 Коллекция появится в списке
 
-Тестовые запросы в коллекции
+## Тестовые запросы в коллекции
 Запрос	Описание
 Health Check	Проверка /health
 Analyze - SPAM text	Классификация спам-текста
@@ -250,7 +251,7 @@ Analyze - Empty text (ERROR)	Проверка обработки пустого 
 Get History	Получение истории
 Get History by ID	Получение записи по ID
 Get History - Not Found (ERROR)	Проверка 404 ошибки
-Структура проекта
+## Структура проекта
 text
 ai-spam-detector/
 ├── app/                          # Исходный код приложения
@@ -273,7 +274,7 @@ ai-spam-detector/
 ├── Dockerfile                    # Инструкция сборки Docker-образа
 ├── README.md                     # Документация проекта
 └── requirements.txt              # Python-зависимости
-Конфигурация
+## Конфигурация
 Все настройки задаются через переменные окружения в файле .env:
 
 Переменная	Описание	Значение по умолчанию
@@ -283,7 +284,7 @@ POSTGRES_PASSWORD	Пароль PostgreSQL	spam_password
 POSTGRES_DB	Название базы данных	spam_db
 POSTGRES_HOST	Хост PostgreSQL	postgres (имя сервиса в Docker)
 POSTGRES_PORT	Порт PostgreSQL	5432
-Обработка ошибок
+## Обработка ошибок
 Код	Ситуация	Ответ
 400	Пустой текст в запросе	{"detail": "Input text cannot be empty"}
 400	Некорректный JSON	{"detail": "..."} (ошибка валидации Pydantic)
@@ -291,28 +292,28 @@ POSTGRES_PORT	Порт PostgreSQL	5432
 500	Ошибка базы данных	{"detail": "Failed to save request history."}
 500	Ошибка ML модели	{"detail": "Failed to analyze text. Please try again."}
 503	Модель не загружена	{"detail": "ML model is not available..."}
-Логирование
+## Логирование
 Приложение ведет подробное логирование следующих событий:
 
-Запуск сервиса
+## Запуск сервиса
 
-Загрузка ML модели
+## Загрузка ML модели
 
-Успешные операции
+## Успешные операции
 
-Входящие HTTP запросы
+## Входящие HTTP запросы
 
-Запросы на анализ текста
+## Запросы на анализ текста
 
-Сохранение в базу данных
+## Сохранение в базу данных
 
-Ошибки подключения к БД
+## Ошибки подключения к БД
 
-Ошибки ML модели
+## Ошибки ML модели
 
-Поиск записей в истории
+## Поиск записей в истории
 
-Логи выводятся в формате:
+## Логи выводятся в формате:
 
 text
 2026-04-20 15:30:00,123 [INFO] app.routes.analyze: Analyzing text: 'Congratulations!...'
